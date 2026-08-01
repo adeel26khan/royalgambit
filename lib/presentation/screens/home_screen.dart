@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/update_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/domain/models/piece.dart';
 import 'package:royalgambit/presentation/providers/game_provider.dart';
@@ -45,6 +46,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _selectedDifficulty = ref.read(settingsProvider).difficulty;
+      UpdateService.instance.checkForUpdate(context);
     });
   }
 

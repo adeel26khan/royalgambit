@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
-import 'package:royalgambit/core/utils/ad_service.dart';
+import 'package:royalgambit/core/utils/update_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/presentation/providers/settings_provider.dart';
 
@@ -125,27 +125,18 @@ class SettingsScreen extends ConsumerWidget {
                   color: AppColors.accent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.card_giftcard, size: 18, color: AppColors.accent),
+                child: const Icon(Icons.system_update_rounded, size: 18, color: AppColors.accent),
               ),
               title: const Text(
-                'Support Developer',
+                'Check for Updates',
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               subtitle: const Text(
-                'Watch a voluntary video ad to support us',
+                'Check Google Play Store / App Store for new version',
                 style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
               ),
               onTap: () {
-                AdService.instance.showRewardedAd(
-                  onRewardGranted: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Thank you so much for your support! ❤️'),
-                        duration: Duration(seconds: 3),
-                      ),
-                    );
-                  },
-                );
+                UpdateService.instance.openStore();
               },
             ),
 
