@@ -43,7 +43,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
     _logoController.forward();
 
-    // Sync difficulty from settings
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _selectedDifficulty = ref.read(settingsProvider).difficulty;
     });
@@ -57,208 +56,87 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    final isWide = size.width > 720;
-
     return Scaffold(
       body: Stack(
         children: [
-          // Dark background gradient
+          // Background Gradient
           Container(
             decoration: const BoxDecoration(gradient: AppColors.homeGradient),
           ),
 
-          // Decorative background chess grid
+          // Chess pattern overlay
           Positioned.fill(
             child: CustomPaint(painter: _ChessPatternPainter()),
           ),
 
-          // Content
+          // Content Layout
           SafeArea(
             child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 480),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      const SizedBox(height: 10),
-
-                      // ── Rotating Gold Crown Logo ──────────────────────────
+                      // Top Row: App Icon & Title
                       AnimatedBuilder(
-                        animation: _logoAnim,
-                        builder: (_, __) => Transform.scale(
-                          scale: _logoAnim.value,
-                          child: const _LogoWidget(),
+                        animation: _fadeAnim,
+                        builder: (_, child) => Opacity(
+                          opacity: _fadeAnim.value,
+                          child: child!,
+                        ),
+                        child: _HeaderWidget(
+                          logoAnim: _logoAnim,
                         ),
                       ),
+
                       const SizedBox(height: 16),
 
-                      // ── ShaderMask Title & Tagline ────────────────────────
-                      AnimatedBuilder(
-                        animation: _fadeAnim,
-                        builder: (_, child) =>
-                            Opacity(opacity: _fadeAnim.value, child: child!),
-                        child: Column(
-                          children: [
-                            ShaderMask(
-                              shaderCallback: (bounds) => AppColors.goldGradient.createShader(
-                                Rect.fromLTWH(0, 0, bounds.width, bounds.height),
-                              ),
-                              child: Text(
-                                AppStrings.appName,
-                                style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                                      fontSize: 44,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      letterSpacing: -0.5,
-                                    ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              AppStrings.tagline,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    letterSpacing: 3,
-                                    color: AppColors.textSecondary,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // ── Game Mode Selector Cards ──────────────────────────
-                      AnimatedBuilder(
-                        animation: _fadeAnim,
-                        builder: (_, child) =>
-                            Opacity(opacity: _fadeAnim.value, child: child!),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'GAME MODE',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelMedium
-                                  ?.copyWith(letterSpacing: 2, color: AppColors.accent),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 12),
-                            if (isWide)
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _ModeCard(
-                                      mode: GameMode.vsComputer,
-                                      selected: _selectedMode == GameMode.vsComputer,
-                                      onTap: () => setState(() =>
-                                          _selectedMode = GameMode.vsComputer),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: _ModeCard(
-                                      mode: GameMode.local2Player,
-                                      selected: _selectedMode == GameMode.local2Player,
-                                      onTap: () => setState(() =>
-                                          _selectedMode = GameMode.local2Player),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            else
-                              Column(
-                                children: [
-                                  _ModeCard(
-                                    mode: GameMode.vsComputer,
-                                    selected: _selectedMode == GameMode.vsComputer,
-                                    onTap: () => setState(() =>
-                                        _selectedMode = GameMode.vsComputer),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _ModeCard(
-                                    mode: GameMode.local2Player,
-                                    selected: _selectedMode == GameMode.local2Player,
-                                    onTap: () => setState(() =>
-                                        _selectedMode = GameMode.local2Player),
-                                  ),
-                                ],
+                      // Main Form Options (Fit within available height)
+                      Expanded(
+                        child: SingleChildScrollView(
+                          physics: const BouncingScrollPhysics(),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Mode Selector Tabs (Horizontal Segmented Bar)
+                              _ModeSegmentedControl(
+                                selectedMode: _selectedMode,
+                                onChanged: (mode) =>
+                                    setState(() => _selectedMode = mode),
                               ),
 
-                            // ── AI Difficulty & Piece Side Selection ────────
-                            if (_selectedMode == GameMode.vsComputer) ...[
-                              const SizedBox(height: 24),
-                              _DifficultySelector(
-                                selected: _selectedDifficulty,
-                                onChanged: (d) =>
-                                    setState(() => _selectedDifficulty = d),
-                              ),
                               const SizedBox(height: 16),
-                              _ColorSelector(
-                                selected: _humanColor,
-                                onChanged: (c) =>
-                                    setState(() => _humanColor = c),
+
+                              // AI Options Container
+                              AnimatedCrossFade(
+                                firstChild: _AiSettingsCard(
+                                  selectedDifficulty: _selectedDifficulty,
+                                  selectedColor: _humanColor,
+                                  onDifficultyChanged: (d) =>
+                                      setState(() => _selectedDifficulty = d),
+                                  onColorChanged: (c) =>
+                                      setState(() => _humanColor = c),
+                                ),
+                                secondChild: _LocalModeCard(),
+                                crossFadeState: _selectedMode == GameMode.vsComputer
+                                    ? CrossFadeState.showFirst
+                                    : CrossFadeState.showSecond,
+                                duration: const Duration(milliseconds: 250),
                               ),
                             ],
-
-                            const SizedBox(height: 32),
-
-                            // ── Single Primary START MATCH Button ──────────
-                            SizedBox(
-                              height: 54,
-                              child: ElevatedButton.icon(
-                                onPressed: _startGame,
-                                icon: const Icon(Icons.play_arrow_rounded, size: 28, color: Color(0xFF121212)),
-                                label: const Text(
-                                  'START MATCH',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.5,
-                                    color: Color(0xFF121212),
-                                  ),
-                                ),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.accent,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 16),
-
-                            // ── Settings & App Info ────────────────────────
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () =>
-                                      Navigator.pushNamed(context, '/settings'),
-                                  icon: const Icon(Icons.settings_outlined,
-                                      size: 18),
-                                  label: const Text(AppStrings.settings),
-                                ),
-                                const SizedBox(width: 16),
-                                Text(
-                                  'v1.0.0',
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: AppColors.textSecondary.withOpacity(0.6),
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ],
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 10),
+
+                      const SizedBox(height: 12),
+
+                      // Bottom Action Bar: START MATCH + Settings
+                      _BottomActionBar(
+                        onStart: _startGame,
+                        onOpenSettings: () =>
+                            Navigator.pushNamed(context, '/settings'),
+                      ),
                     ],
                   ),
                 ),
@@ -279,7 +157,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           humanColor: _humanColor,
         );
 
-    // Initialize timer
     ref.read(timerProvider.notifier).initialize(
           seconds: settings.timerSeconds,
           enabled: settings.timerEnabled,
@@ -292,7 +169,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 }
 
-// ─── Rotating Gold Crown Logo ────────────────────────────────────────────────
+// ─── Header Widget (Compact & Hero) ──────────────────────────────────────────
+
+class _HeaderWidget extends StatelessWidget {
+  final Animation<double> logoAnim;
+
+  const _HeaderWidget({required this.logoAnim});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        AnimatedBuilder(
+          animation: logoAnim,
+          builder: (_, __) => Transform.scale(
+            scale: logoAnim.value,
+            child: const _LogoWidget(),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ShaderMask(
+          shaderCallback: (bounds) => AppColors.goldGradient.createShader(
+            Rect.fromLTWH(0, 0, bounds.width, bounds.height),
+          ),
+          child: Text(
+            AppStrings.appName,
+            style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+          ),
+        ),
+        Text(
+          AppStrings.tagline,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                letterSpacing: 2.5,
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Logo Widget ─────────────────────────────────────────────────────────────
 
 class _LogoWidget extends StatefulWidget {
   const _LogoWidget();
@@ -323,13 +246,13 @@ class _LogoWidgetState extends State<_LogoWidget>
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 130,
-      height: 130,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         gradient: RadialGradient(
           colors: [
-            AppColors.accent.withOpacity(0.3),
+            AppColors.accent.withOpacity(0.35),
             AppColors.accent.withOpacity(0.08),
             Colors.transparent,
           ],
@@ -338,8 +261,8 @@ class _LogoWidgetState extends State<_LogoWidget>
         boxShadow: [
           BoxShadow(
             color: AppColors.accent.withOpacity(0.2),
-            blurRadius: 36,
-            spreadRadius: 4,
+            blurRadius: 24,
+            spreadRadius: 2,
           ),
         ],
       ),
@@ -350,13 +273,13 @@ class _LogoWidgetState extends State<_LogoWidget>
           child: child,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: const EdgeInsets.all(8.0),
           child: Image.asset(
             'assets/images/logo-transp.webp',
             fit: BoxFit.contain,
             errorBuilder: (_, __, ___) => const Icon(
               Icons.emoji_events,
-              size: 64,
+              size: 44,
               color: AppColors.accent,
             ),
           ),
@@ -366,96 +289,102 @@ class _LogoWidgetState extends State<_LogoWidget>
   }
 }
 
-// ─── Mode Selection Cards ────────────────────────────────────────────────────
+// ─── Horizontal Segmented Control for Game Mode ───────────────────────────────
 
-class _ModeCard extends StatelessWidget {
-  final GameMode mode;
+class _ModeSegmentedControl extends StatelessWidget {
+  final GameMode selectedMode;
+  final ValueChanged<GameMode> onChanged;
+
+  const _ModeSegmentedControl({
+    required this.selectedMode,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: AppColors.accent.withOpacity(0.15),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _SegmentTab(
+              title: 'vs Computer',
+              icon: Icons.smart_toy_outlined,
+              selected: selectedMode == GameMode.vsComputer,
+              onTap: () => onChanged(GameMode.vsComputer),
+            ),
+          ),
+          Expanded(
+            child: _SegmentTab(
+              title: '2 Player Local',
+              icon: Icons.people_outline,
+              selected: selectedMode == GameMode.local2Player,
+              onTap: () => onChanged(GameMode.local2Player),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SegmentTab extends StatelessWidget {
+  final String title;
+  final IconData icon;
   final bool selected;
   final VoidCallback onTap;
 
-  const _ModeCard({
-    required this.mode,
+  const _SegmentTab({
+    required this.title,
+    required this.icon,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isVsCom = mode == GameMode.vsComputer;
-    final title = isVsCom ? AppStrings.vsComputer : AppStrings.local2Player;
-    final subtitle = isVsCom
-        ? 'Play against Stockfish AI'
-        : 'Pass and play on same device';
-    final icon = isVsCom ? Icons.smart_toy_outlined : Icons.people_outline;
-
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? AppColors.surfaceElevated : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected ? AppColors.accent : AppColors.surfaceVariant,
-            width: selected ? 2 : 1,
-          ),
+          color: selected ? AppColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: AppColors.accent.withOpacity(0.12),
-                    blurRadius: 12,
-                    spreadRadius: 1,
+                    color: AppColors.accent.withOpacity(0.25),
+                    blurRadius: 8,
                   ),
                 ]
               : [],
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected
-                    ? AppColors.accent.withOpacity(0.2)
-                    : AppColors.surfaceVariant,
-              ),
-              child: Icon(
-                icon,
-                size: 24,
-                color: selected ? AppColors.accent : AppColors.textSecondary,
+            Icon(
+              icon,
+              size: 18,
+              color: selected ? const Color(0xFF121212) : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? const Color(0xFF121212) : AppColors.textSecondary,
               ),
             ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                      color: selected ? AppColors.accent : AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (selected)
-              const Icon(
-                Icons.check_circle_rounded,
-                color: AppColors.accent,
-                size: 20,
-              ),
           ],
         ),
       ),
@@ -463,13 +392,134 @@ class _ModeCard extends StatelessWidget {
   }
 }
 
-// ─── Difficulty Selector ──────────────────────────────────────────────────────
+// ─── Unified AI Settings Card ────────────────────────────────────────────────
 
-class _DifficultySelector extends StatelessWidget {
+class _AiSettingsCard extends StatelessWidget {
+  final AiDifficulty selectedDifficulty;
+  final PieceColor selectedColor;
+  final ValueChanged<AiDifficulty> onDifficultyChanged;
+  final ValueChanged<PieceColor> onColorChanged;
+
+  const _AiSettingsCard({
+    required this.selectedDifficulty,
+    required this.selectedColor,
+    required this.onDifficultyChanged,
+    required this.onColorChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.accent.withOpacity(0.12),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Difficulty Section
+          Text(
+            'SELECT DIFFICULTY',
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontSize: 11,
+                  letterSpacing: 1.5,
+                  color: AppColors.accent,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 10),
+          _DifficultyGrid(
+            selected: selectedDifficulty,
+            onChanged: onDifficultyChanged,
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 16),
+
+          // Play As Side Section
+          Row(
+            children: [
+              Text(
+                'PLAY AS',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontSize: 11,
+                      letterSpacing: 1.5,
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const Spacer(),
+              _ColorSelectorCompact(
+                selected: selectedColor,
+                onChanged: onColorChanged,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Local 2 Player Card ─────────────────────────────────────────────────────
+
+class _LocalModeCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.accent.withOpacity(0.12),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.people_outline,
+            size: 36,
+            color: AppColors.accent,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Pass & Play Mode',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Play face-to-face with a friend on this device.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Compact Difficulty Grid ────────────────────────────────────────────────
+
+class _DifficultyGrid extends StatelessWidget {
   final AiDifficulty selected;
   final ValueChanged<AiDifficulty> onChanged;
 
-  const _DifficultySelector({
+  const _DifficultyGrid({
     required this.selected,
     required this.onChanged,
   });
@@ -483,119 +533,99 @@ class _DifficultySelector extends StatelessWidget {
       (AiDifficulty.master, AppStrings.master, Icons.emoji_events),
     ];
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          AppStrings.selectDifficulty,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                letterSpacing: 1.5,
-                color: AppColors.accent,
-              ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: difficulties.map((d) {
-            final (diff, label, icon) = d;
-            final isSelected = selected == diff;
-            return Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(diff),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  margin: const EdgeInsets.symmetric(horizontal: 3),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.accent.withOpacity(0.2)
-                        : AppColors.surface,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: isSelected
-                          ? AppColors.accent
-                          : AppColors.surfaceVariant,
-                      width: isSelected ? 2 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        icon,
-                        size: 20,
-                        color: isSelected ? AppColors.accent : AppColors.textSecondary,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? AppColors.accent : AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+    return Row(
+      children: difficulties.map((d) {
+        final (diff, label, icon) = d;
+        final isSelected = selected == diff;
+        return Expanded(
+          child: GestureDetector(
+            onTap: () => onChanged(diff),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              decoration: BoxDecoration(
+                color: isSelected ? AppColors.accent : AppColors.surfaceElevated,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected ? AppColors.accent : Colors.transparent,
+                  width: 1,
                 ),
               ),
-            );
-          }).toList(),
-        ),
-      ],
+              child: Column(
+                children: [
+                  Icon(
+                    icon,
+                    size: 18,
+                    color: isSelected ? const Color(0xFF121212) : AppColors.textSecondary,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    label,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? const Color(0xFF121212) : AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
 
-// ─── Color selector ───────────────────────────────────────────────────────────
+// ─── Compact Color Selector Toggle ──────────────────────────────────────────
 
-class _ColorSelector extends StatelessWidget {
+class _ColorSelectorCompact extends StatelessWidget {
   final PieceColor selected;
   final ValueChanged<PieceColor> onChanged;
 
-  const _ColorSelector({required this.selected, required this.onChanged});
+  const _ColorSelectorCompact({
+    required this.selected,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'PLAY AS',
-          style: Theme.of(context)
-              .textTheme
-              .labelMedium
-              ?.copyWith(letterSpacing: 1.5, color: AppColors.accent),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            _ColorOption(
-              color: PieceColor.white,
-              label: 'White',
-              selected: selected == PieceColor.white,
-              onTap: () => onChanged(PieceColor.white),
-            ),
-            const SizedBox(width: 12),
-            _ColorOption(
-              color: PieceColor.black,
-              label: 'Black',
-              selected: selected == PieceColor.black,
-              onTap: () => onChanged(PieceColor.black),
-            ),
-          ],
-        ),
-      ],
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ColorChip(
+            color: PieceColor.white,
+            label: 'White',
+            selected: selected == PieceColor.white,
+            onTap: () => onChanged(PieceColor.white),
+          ),
+          _ColorChip(
+            color: PieceColor.black,
+            label: 'Black',
+            selected: selected == PieceColor.black,
+            onTap: () => onChanged(PieceColor.black),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _ColorOption extends StatelessWidget {
+class _ColorChip extends StatelessWidget {
   final PieceColor color;
   final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _ColorOption({
+  const _ColorChip({
     required this.color,
     required this.label,
     required this.selected,
@@ -605,55 +635,109 @@ class _ColorOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWhite = color == PieceColor.white;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected
-                ? AppColors.accent.withOpacity(0.15)
-                : AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? AppColors.accent : AppColors.surfaceVariant,
-              width: selected ? 2 : 1,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isWhite ? Colors.white : Colors.black,
+                border: Border.all(
+                  color: selected
+                      ? Colors.black.withOpacity(0.4)
+                      : AppColors.textSecondary.withOpacity(0.5),
+                  width: 1,
+                ),
+              ),
             ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isWhite ? Colors.white : Colors.black,
-                  border: Border.all(
-                    color: AppColors.textSecondary.withOpacity(0.5),
-                    width: 1,
-                  ),
-                ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? const Color(0xFF121212) : AppColors.textSecondary,
               ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? AppColors.accent : AppColors.textPrimary,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-// ─── Background chess pattern painter ────────────────────────────────────────
+// ─── Bottom Action Bar (Fixed, Non-Scrollable) ───────────────────────────────
+
+class _BottomActionBar extends StatelessWidget {
+  final VoidCallback onStart;
+  final VoidCallback onOpenSettings;
+
+  const _BottomActionBar({
+    required this.onStart,
+    required this.onOpenSettings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: onStart,
+              icon: const Icon(Icons.play_arrow_rounded, size: 26, color: Color(0xFF121212)),
+              label: const Text(
+                'START MATCH',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.2,
+                  color: Color(0xFF121212),
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.accent.withOpacity(0.2),
+            ),
+          ),
+          child: IconButton(
+            onPressed: onOpenSettings,
+            icon: const Icon(Icons.settings_outlined, color: AppColors.textPrimary),
+            tooltip: AppStrings.settings,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Chess Pattern Painter ────────────────────────────────────────────────────
 
 class _ChessPatternPainter extends CustomPainter {
   @override
