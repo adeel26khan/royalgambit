@@ -10,13 +10,20 @@ class AdService {
   bool _isAdLoading = false;
   bool _isInitialized = false;
 
-  // Test Ad Unit IDs (replace with your real AdMob Ad Unit IDs in production)
+  // Live Production Rewarded Ad Unit ID
+  static const String _prodRewardedAdUnitId = 'ca-app-pub-8100492652947511/4144281218';
+
   static String get rewardedAdUnitId {
     if (kIsWeb) return '';
-    if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917'; // Android Test Rewarded ID
-    } else if (Platform.isIOS) {
-      return 'ca-app-pub-3940256099942544/1712485313'; // iOS Test Rewarded ID
+    if (kDebugMode) {
+      if (Platform.isAndroid) {
+        return 'ca-app-pub-3940256099942544/5224354917'; // Android Test Rewarded ID
+      } else if (Platform.isIOS) {
+        return 'ca-app-pub-3940256099942544/1712485313'; // iOS Test Rewarded ID
+      }
+    }
+    if (Platform.isAndroid || Platform.isIOS) {
+      return _prodRewardedAdUnitId;
     }
     return '';
   }
@@ -44,7 +51,7 @@ class AdService {
       request: const AdRequest(),
       rewardedAdLoadCallback: RewardedAdLoadCallback(
         onAdLoaded: (RewardedAd ad) {
-          debugPrint('RewardedAd loaded successfully.');
+          debugPrint('RewardedAd loaded successfully ($rewardedAdUnitId).');
           _rewardedAd = ad;
           _isAdLoading = false;
         },
