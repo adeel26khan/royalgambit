@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/presentation/providers/game_provider.dart';
 
@@ -19,11 +20,30 @@ class GameControls extends ConsumerWidget {
     final isLocalMode = game.mode == GameMode.local2Player;
     final drawOffered = game.drawOfferedByWhite || game.drawOfferedByBlack;
 
+    void triggerUndoWithAdFallback() {
+      if (canUndo) {
+        ref.read(gameProvider.notifier).undo();
+      } else if (!appState.isAiThinking && game.moveHistory.isNotEmpty) {
+        // Offer Rewarded Ad to unlock extra undo
+        AdService.instance.showRewardedAd(
+          onRewardGranted: () {
+            ref.read(gameProvider.notifier).undo();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Extra Undo Granted! 🎬'),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          },
+        );
+      }
+    }
+
     if (compact) {
       return _CompactControls(
-        canUndo: canUndo,
+        canUndo: canUndo || (!appState.isAiThinking && game.moveHistory.isNotEmpty),
         canRedo: canRedo,
-        onUndo: () => ref.read(gameProvider.notifier).undo(),
+        onUndo: triggerUndoWithAdFallback,
         onRedo: () => ref.read(gameProvider.notifier).redo(),
         onFlip: () => ref.read(gameProvider.notifier).flipBoard(),
         onNew: () => _confirmNewGame(context, ref),
@@ -49,8 +69,10 @@ class GameControls extends ConsumerWidget {
             children: [
               _ControlButton(
                 icon: Icons.undo,
-                label: AppStrings.undo,
-                onTap: canUndo ? () => ref.read(gameProvider.notifier).undo() : null,
+                label: canUndo ? AppStrings.undo : 'Ad Undo',
+                onTap: (canUndo || (!appState.isAiThinking && game.moveHistory.isNotEmpty))
+                    ? triggerUndoWithAdFallback
+                    : null,
               ),
               const SizedBox(width: 8),
               _ControlButton(

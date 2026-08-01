@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/presentation/providers/settings_provider.dart';
 
@@ -112,6 +113,42 @@ class SettingsScreen extends ConsumerWidget {
               onChanged: notifier.setHapticsEnabled,
             ),
 
+            const SizedBox(height: 24),
+
+            // ── Support ───────────────────────────────────────────────────
+            _SectionHeader('SUPPORT'),
+            ListTile(
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.card_giftcard, size: 18, color: AppColors.accent),
+              ),
+              title: const Text(
+                'Support Developer',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Watch a voluntary video ad to support us',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              onTap: () {
+                AdService.instance.showRewardedAd(
+                  onRewardGranted: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Thank you so much for your support! ❤️'),
+                        duration: Duration(seconds: 3),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+
             const SizedBox(height: 32),
 
             // About
@@ -120,7 +157,7 @@ class SettingsScreen extends ConsumerWidget {
                 '${AppStrings.appName} v1.0.0\nBuilt with Flutter ❤️',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.secondary.withOpacity(0.6),
+                      color: AppColors.textSecondary.withOpacity(0.6),
                       height: 1.6,
                     ),
               ),

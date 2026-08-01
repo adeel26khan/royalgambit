@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/domain/models/piece.dart';
 import 'package:royalgambit/presentation/providers/game_provider.dart';
@@ -30,7 +31,7 @@ class GameEndOverlay extends ConsumerWidget {
         child: Center(
           child: Container(
             margin: const EdgeInsets.all(24),
-            padding: const EdgeInsets.all(32),
+            padding: const EdgeInsets.all(28),
             constraints: const BoxConstraints(maxWidth: 420),
             decoration: BoxDecoration(
               color: AppColors.surface,
@@ -90,9 +91,9 @@ class GameEndOverlay extends ConsumerWidget {
 
                 // Stats row
                 _StatsRow(game: game),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
 
-                // Buttons
+                // Action Buttons
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -107,7 +108,6 @@ class GameEndOverlay extends ConsumerWidget {
                     const SizedBox(height: 10),
                     OutlinedButton.icon(
                       onPressed: () {
-                        // Restart with same settings
                         ref.read(gameProvider.notifier).startNewGame(
                               mode: game.mode,
                               difficulty: game.difficulty,
@@ -117,6 +117,32 @@ class GameEndOverlay extends ConsumerWidget {
                       },
                       icon: const Icon(Icons.replay),
                       label: const Text(AppStrings.playAgain),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Voluntary Rewarded Ad Button
+                    TextButton.icon(
+                      onPressed: () {
+                        AdService.instance.showRewardedAd(
+                          onRewardGranted: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Thank you for supporting Royal Gambit! ❤️'),
+                                duration: Duration(seconds: 3),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                      icon: const Icon(Icons.card_giftcard, size: 18, color: AppColors.accent),
+                      label: const Text(
+                        'Watch Ad to Support Us 🎁',
+                        style: TextStyle(
+                          color: AppColors.accent,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ],
                 ),
