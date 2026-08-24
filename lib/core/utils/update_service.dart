@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:in_app_update/in_app_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:royalgambit/presentation/widgets/overlays/force_update_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -33,8 +34,7 @@ class UpdateService {
     }
   }
 
-  /// Checks if a force update is required on app startup.
-  /// Set [minRequiredVersion] or [minRequiredBuild] when deploying mandatory updates.
+  /// Checks if an update is available and triggers Play Store In-App Update or Force Update Dialog.
   Future<void> checkForUpdate(
     BuildContext context, {
     String? minRequiredVersion,
@@ -45,8 +45,22 @@ class UpdateService {
 
     await init();
 
-    bool needsUpdate = forceUpdateTest;
+    // 1. Try Native Google Play In-App Update (Immediate Force Update) on Android
+    if (Platform.isAndroid) {
+      try {
+        final updateInfo = await InAppUpdate.checkForUpdate();
+        if (updateInfo.updateAvailability == UpdateAvailability.updateAvailable) {
+          // Perform Immediate In-App Force Update via Play Store
+          await InAppUpdate.performImmediateUpdate();
+          return;
+        }
+      } catch (e) {
+        debugPrint('Google Play InAppUpdate error (fallback to dialog): $e');
+      }
+    }
 
+    // 2. Fallback / Custom Version & Build Constraint Check
+    bool needsUpdate = forceUpdateTest;
     if (minRequiredBuild != null && _currentBuildNumber < minRequiredBuild) {
       needsUpdate = true;
     } else if (minRequiredVersion != null &&

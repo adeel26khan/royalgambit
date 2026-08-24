@@ -63,14 +63,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Background Gradient
+          // Full-Screen Warm Luxury Gold Background Gradient
           Container(
-            decoration: const BoxDecoration(gradient: AppColors.homeGradient),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF1E1810), // Rich warm dark gold top
+                  Color(0xFF16120C), // Mid warm gold ambient
+                  Color(0xFF121212), // Sleek dark base
+                ],
+              ),
+            ),
           ),
 
-          // Chess pattern overlay
+          // Full-Screen Warm Gold Radial Ambient Aura
           Positioned.fill(
-            child: CustomPaint(painter: _ChessPatternPainter()),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: const Alignment(0, -0.3),
+                  radius: 1.2,
+                  colors: [
+                    AppColors.accent.withOpacity(0.18),
+                    AppColors.accent.withOpacity(0.05),
+                    Colors.transparent,
+                  ],
+                  stops: const [0.0, 0.5, 1.0],
+                ),
+              ),
+            ),
+          ),
+
+          // Elegant Full-Screen Chessboard Pattern Overlay (8x8 proportions)
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _ChessboardPatternPainter(),
+            ),
           ),
 
           // Content Layout
@@ -291,6 +321,8 @@ class _LogoWidgetState extends State<_LogoWidget>
           child: Image.asset(
             'assets/images/logo-transp.webp',
             fit: BoxFit.contain,
+            color: AppColors.accent,
+            colorBlendMode: BlendMode.srcIn,
             errorBuilder: (_, __, ___) => const Icon(
               Icons.emoji_events,
               size: 44,
@@ -770,32 +802,6 @@ class _BottomActionBar extends StatelessWidget {
   }
 }
 
-// ─── Chess Pattern Painter ────────────────────────────────────────────────────
-
-class _ChessPatternPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.015)
-      ..style = PaintingStyle.fill;
-
-    final tileSize = size.width / 14;
-    for (int r = 0; r < 20; r++) {
-      for (int c = 0; c < 16; c++) {
-        if ((r + c) % 2 == 0) {
-          canvas.drawRect(
-            Rect.fromLTWH(c * tileSize, r * tileSize, tileSize, tileSize),
-            paint,
-          );
-        }
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_) => false;
-}
-
 // ─── Profile Rank & XP Banner ──────────────────────────────────────────────────
 
 class _ProfileRankBanner extends ConsumerWidget {
@@ -928,6 +934,39 @@ class _ProfileRankBanner extends ConsumerWidget {
       ),
     );
   }
+}
+
+// ─── Full-Screen Chessboard Pattern Painter ───────────────────────────────────
+
+class _ChessboardPatternPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Standard 8-column chessboard proportion
+    final squareSize = size.width / 8;
+    final fillPaint = Paint()
+      ..color = AppColors.accent.withOpacity(0.035)
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = AppColors.accent.withOpacity(0.02)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.5;
+
+    final rows = (size.height / squareSize).ceil() + 1;
+
+    for (int r = 0; r < rows; r++) {
+      for (int c = 0; c < 8; c++) {
+        final rect = Rect.fromLTWH(c * squareSize, r * squareSize, squareSize, squareSize);
+        if ((r + c) % 2 == 0) {
+          canvas.drawRect(rect, fillPaint);
+        }
+        canvas.drawRect(rect, borderPaint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_) => false;
 }
 
 
