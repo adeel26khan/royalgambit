@@ -6,7 +6,9 @@ import 'package:royalgambit/core/constants/app_strings.dart';
 import 'package:royalgambit/presentation/providers/game_provider.dart';
 
 class MoveHistoryPanel extends ConsumerWidget {
-  const MoveHistoryPanel({super.key});
+  final bool showHeader;
+
+  const MoveHistoryPanel({super.key, this.showHeader = true});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -26,48 +28,50 @@ class MoveHistoryPanel extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.format_list_numbered,
-                    size: 18,
-                    color: AppColors.accent,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    AppStrings.moveHistory,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                ],
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy, size: 16),
-                tooltip: 'Copy PGN',
-                onPressed: moves.isEmpty
-                    ? null
-                    : () {
-                        final pgn = _generatePgn(moves);
-                        Clipboard.setData(ClipboardData(text: pgn));
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('PGN copied to clipboard!'),
-                            duration: Duration(seconds: 2),
+          if (showHeader) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.format_list_numbered,
+                      size: 18,
+                      color: AppColors.accent,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStrings.moveHistory,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textPrimary,
                           ),
-                        );
-                      },
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          const Divider(height: 1),
-          const SizedBox(height: 6),
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.copy, size: 16),
+                  tooltip: 'Copy PGN',
+                  onPressed: moves.isEmpty
+                      ? null
+                      : () {
+                          final pgn = generatePgn(moves);
+                          Clipboard.setData(ClipboardData(text: pgn));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('PGN copied to clipboard!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Divider(height: 1),
+            const SizedBox(height: 6),
+          ],
           Expanded(
             child: moves.isEmpty
                 ? Center(
@@ -91,7 +95,7 @@ class MoveHistoryPanel extends ConsumerWidget {
     );
   }
 
-  String _generatePgn(List<dynamic> moves) {
+  static String generatePgn(List<dynamic> moves) {
     final buffer = StringBuffer();
     for (int i = 0; i < moves.length; i += 2) {
       final moveNum = i ~/ 2 + 1;

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/core/utils/responsive.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/domain/models/piece.dart';
@@ -140,90 +141,128 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
     return Stack(
       children: [
-        SafeArea(
-          child: Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    children: [
-                      // Opponent (top)
-                      PlayerInfoPanel(
-                        playerColor: topColor,
-                        isTop: true,
-                      ),
-                      const SizedBox(height: 10),
+        Column(
+          children: [
+            Expanded(
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    // Policy-Compliant Top Banner Ad (Completely isolated from game action controls)
+                    const BannerAdWidget(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                    ),
 
-                      // Board
-                      Center(
-                        child: ChessBoard(size: boardSize),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Player (bottom)
-                      PlayerInfoPanel(
-                        playerColor: bottomColor,
-                        isTop: false,
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Move history collapsible ExpansionTile
-                      Container(
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: AppColors.accent.withOpacity(0.12),
-                          ),
-                        ),
-                        child: Theme(
-                          data: Theme.of(context).copyWith(
-                            dividerColor: Colors.transparent,
-                          ),
-                          child: ExpansionTile(
-                            dense: true,
-                            title: const Row(
-                              children: [
-                                Icon(Icons.format_list_numbered, size: 16, color: AppColors.accent),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Move History',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
-                                  ),
-                                ),
-                              ],
+                    Expanded(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Column(
+                          children: [
+                            // Opponent (top)
+                            PlayerInfoPanel(
+                              playerColor: topColor,
+                              isTop: true,
                             ),
-                            children: const [
-                              SizedBox(
-                                height: 160,
-                                child: MoveHistoryPanel(),
+                            const SizedBox(height: 10),
+
+                            // Board
+                            Center(
+                              child: ChessBoard(size: boardSize),
+                            ),
+                            const SizedBox(height: 10),
+
+                            // Player (bottom)
+                            PlayerInfoPanel(
+                              playerColor: bottomColor,
+                              isTop: false,
+                            ),
+                            const SizedBox(height: 12),
+
+                            // Move history collapsible ExpansionTile (Wrapped in Material for Flutter assertion safety)
+                            Material(
+                              color: AppColors.surface,
+                              clipBehavior: Clip.antiAlias,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(
+                                  color: AppColors.accent.withOpacity(0.12),
+                                ),
                               ),
-                            ],
-                          ),
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  dividerColor: Colors.transparent,
+                                ),
+                                child: ExpansionTile(
+                                  dense: true,
+                                  title: Row(
+                                    children: [
+                                      const Icon(Icons.format_list_numbered, size: 16, color: AppColors.accent),
+                                      const SizedBox(width: 8),
+                                      const Text(
+                                        'Move History',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      IconButton(
+                                        icon: const Icon(Icons.copy, size: 16, color: AppColors.accent),
+                                        tooltip: 'Copy PGN',
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                        onPressed: game.moveHistory.isEmpty
+                                            ? null
+                                            : () {
+                                                final pgn = MoveHistoryPanel.generatePgn(game.moveHistory);
+                                                Clipboard.setData(ClipboardData(text: pgn));
+                                                ScaffoldMessenger.of(context).showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text('PGN copied to clipboard! 📋'),
+                                                    duration: Duration(seconds: 2),
+                                                  ),
+                                                );
+                                              },
+                                      ),
+                                    ],
+                                  ),
+                                  children: const [
+                                    SizedBox(
+                                      height: 160,
+                                      child: MoveHistoryPanel(showHeader: false),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
+            ),
 
-              // Bottom SafeArea row with controls
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                decoration: const BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(top: BorderSide(color: Color(0xFF282828))),
-                ),
-                child: const GameControls(compact: true),
+            // Bottom bar with edge-to-edge background surface and safe button insets
+            Container(
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: Color(0xFF282828))),
               ),
-            ],
-          ),
+              child: const SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: GameControls(compact: true),
+                ),
+              ),
+            ),
+          ],
         ),
+
 
         // Overlays
         if (appState.pendingPromotion != null) const PromotionDialog(),

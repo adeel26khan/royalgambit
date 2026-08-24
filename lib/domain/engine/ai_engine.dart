@@ -93,16 +93,72 @@ class AiEngine {
     final moves = MoveGenerator.generateLegalMoves(state, state.currentTurn);
     if (moves.isEmpty) return null;
 
+    // ─── 1. Opening Book for Early Game ─────────────────────────────────────
+    if (state.fullMoveNumber <= 3) {
+      final bookMove = _getOpeningBookMove(state, moves);
+      if (bookMove != null) return bookMove;
+    }
+
     switch (difficulty) {
       case AiDifficulty.beginner:
         return _randomOrGreedy(state, moves);
       case AiDifficulty.intermediate:
-        return _minimaxBest(state, moves, 3);
+        return _minimaxBest(state, moves, 3, maxQuiescence: 2);
       case AiDifficulty.advanced:
-        return _minimaxBest(state, moves, 4);
+        return _minimaxBest(state, moves, 4, maxQuiescence: 3);
       case AiDifficulty.master:
-        return _minimaxBest(state, moves, 5);
+        return _minimaxBest(state, moves, 5, maxQuiescence: 4);
     }
+  }
+
+  // ─── Opening Book Implementation ─────────────────────────────────────────
+
+  static ChessMove? _getOpeningBookMove(GameState state, List<ChessMove> moves) {
+    final turn = state.currentTurn;
+
+    if (turn == PieceColor.white && state.fullMoveNumber == 1) {
+      // White 1st move options: 1.e4 (50%), 1.d4 (35%), 1.Nf3 (15%)
+      final roll = _random.nextDouble();
+      Square targetSquare;
+      if (roll < 0.50) {
+        targetSquare = const Square(4, 4); // e4
+      } else if (roll < 0.85) {
+        targetSquare = const Square(4, 3); // d4
+      } else {
+        targetSquare = const Square(5, 5); // Nf3
+      }
+      final candidate = moves.where((m) => m.to == targetSquare).toList();
+      if (candidate.isNotEmpty) return candidate[_random.nextInt(candidate.length)];
+    }
+
+    if (turn == PieceColor.black && state.fullMoveNumber == 1) {
+      // Black 1st move responses vs e4 or d4
+      final last = state.lastMove;
+      if (last != null) {
+        if (last.to == const Square(4, 4)) {
+          // Response to 1.e4 -> 1...e5 (40%), 1...c5 (40%), 1...e6 (20%)
+          final roll = _random.nextDouble();
+          Square target;
+          if (roll < 0.40) {
+            target = const Square(3, 4); // e5
+          } else if (roll < 0.80) {
+            target = const Square(3, 2); // c5
+          } else {
+            target = const Square(2, 4); // e6
+          }
+          final candidate = moves.where((m) => m.to == target).toList();
+          if (candidate.isNotEmpty) return candidate[_random.nextInt(candidate.length)];
+        } else if (last.to == const Square(4, 3)) {
+          // Response to 1.d4 -> 1...d5 (50%), 1...Nf6 (50%)
+          final roll = _random.nextDouble();
+          Square target = roll < 0.50 ? const Square(3, 3) : const Square(2, 5);
+          final candidate = moves.where((m) => m.to == target).toList();
+          if (candidate.isNotEmpty) return candidate[_random.nextInt(candidate.length)];
+        }
+      }
+    }
+
+    return null;
   }
 
   // ─── Beginner: random move or greedy capture ─────────────────────────────
@@ -118,31 +174,49 @@ class AiEngine {
     return moves[_random.nextInt(moves.length)];
   }
 
-  // ─── Minimax with alpha-beta pruning ─────────────────────────────────────
+  // ─── Minimax with alpha-beta pruning & randomized tie-breaking ─────────
 
   static ChessMove? _minimaxBest(
     GameState state,
     List<ChessMove> moves,
-    int depth,
-  ) {
-    ChessMove? bestMove;
-    int bestScore = state.currentTurn == PieceColor.white ? -999999 : 999999;
+    int depth, {
+    required int maxQuiescence,
+  }) {
+    final ordered = _orderMoves(moves);
     final maximizing = state.currentTurn == PieceColor.white;
 
-    // Order moves for better pruning (captures first)
-    moves = _orderMoves(moves);
+    final moveScores = <(ChessMove, int)>[];
 
-    for (final move in moves) {
+    for (final move in ordered) {
       final newBoard = MoveGenerator.applyMoveToBoard(state.board, move);
       final newState = _quickState(state, newBoard, move);
-      final score = _minimax(newState, depth - 1, -999999, 999999, !maximizing);
-      if (maximizing ? score > bestScore : score < bestScore) {
-        bestScore = score;
-        bestMove = move;
-      }
+      final score = _minimax(
+        newState,
+        depth - 1,
+        -999999,
+        999999,
+        !maximizing,
+        maxQuiescence,
+      );
+      moveScores.add((move, score));
     }
 
-    return bestMove;
+    if (moveScores.isEmpty) return null;
+
+    // Determine best score
+    moveScores.sort((a, b) => maximizing
+        ? b.$2.compareTo(a.$2)
+        : a.$2.compareTo(b.$2));
+
+    final bestScore = moveScores.first.$2;
+
+    // Tie-breaking: Pick randomly from top moves scoring within 12 points of best score
+    final topCandidates = moveScores.where((item) {
+      final diff = (item.$2 - bestScore).abs();
+      return diff <= 12;
+    }).map((item) => item.$1).toList();
+
+    return topCandidates[_random.nextInt(topCandidates.length)];
   }
 
   static int _minimax(
@@ -151,8 +225,11 @@ class AiEngine {
     int alpha,
     int beta,
     bool maximizing,
+    int maxQuiescence,
   ) {
-    if (depth == 0) return _evaluate(state);
+    if (depth == 0) {
+      return _quiescenceSearch(state, alpha, beta, maximizing, maxQuiescence);
+    }
 
     final moves = MoveGenerator.generateLegalMoves(state, state.currentTurn);
     if (moves.isEmpty) {
@@ -169,7 +246,7 @@ class AiEngine {
       for (final move in ordered) {
         final newBoard = MoveGenerator.applyMoveToBoard(state.board, move);
         final newState = _quickState(state, newBoard, move);
-        final eval = _minimax(newState, depth - 1, alpha, beta, false);
+        final eval = _minimax(newState, depth - 1, alpha, beta, false, maxQuiescence);
         maxEval = max(maxEval, eval);
         alpha = max(alpha, eval);
         if (beta <= alpha) break;
@@ -180,7 +257,58 @@ class AiEngine {
       for (final move in ordered) {
         final newBoard = MoveGenerator.applyMoveToBoard(state.board, move);
         final newState = _quickState(state, newBoard, move);
-        final eval = _minimax(newState, depth - 1, alpha, beta, true);
+        final eval = _minimax(newState, depth - 1, alpha, beta, true, maxQuiescence);
+        minEval = min(minEval, eval);
+        beta = min(beta, eval);
+        if (beta <= alpha) break;
+      }
+      return minEval;
+    }
+  }
+
+  // ─── Quiescence Search (Solves Horizon Effect / Blunders) ────────────────
+
+  static int _quiescenceSearch(
+    GameState state,
+    int alpha,
+    int beta,
+    bool maximizing,
+    int qDepth,
+  ) {
+    final standPat = _evaluate(state);
+
+    if (qDepth <= 0) return standPat;
+
+    if (maximizing) {
+      if (standPat >= beta) return beta;
+      if (standPat > alpha) alpha = standPat;
+    } else {
+      if (standPat <= alpha) return alpha;
+      if (standPat < beta) beta = standPat;
+    }
+
+    final moves = MoveGenerator.generateLegalMoves(state, state.currentTurn);
+    final captures = _orderMoves(moves.where((m) => m.isCapture).toList());
+
+    if (captures.isEmpty) return standPat;
+
+    if (maximizing) {
+      int maxEval = standPat;
+      for (final capture in captures) {
+        final newBoard = MoveGenerator.applyMoveToBoard(state.board, capture);
+        final newState = _quickState(state, newBoard, capture);
+        final eval = _quiescenceSearch(newState, alpha, beta, false, qDepth - 1);
+        maxEval = max(maxEval, eval);
+        alpha = max(alpha, eval);
+        if (beta <= alpha) break;
+      }
+      return maxEval;
+    } else {
+      int minEval = standPat;
+      for (final capture in captures) {
+        final newBoard = MoveGenerator.applyMoveToBoard(state.board, capture);
+        final newState = _quickState(state, newBoard, capture);
+        final eval = _quiescenceSearch(newState, alpha, beta, true, qDepth - 1);
         minEval = min(minEval, eval);
         beta = min(beta, eval);
         if (beta <= alpha) break;
@@ -194,15 +322,22 @@ class AiEngine {
   static List<ChessMove> _orderMoves(List<ChessMove> moves) {
     return [...moves]..sort((a, b) {
         int scoreA = 0, scoreB = 0;
-        if (a.isCapture) scoreA += (a.capturedPiece?.value ?? 0) * 10;
-        if (b.isCapture) scoreB += (b.capturedPiece?.value ?? 0) * 10;
+        if (a.isCapture) {
+          final victimValue = a.capturedPiece?.value ?? 0;
+          scoreA += victimValue * 10;
+        }
+        if (b.isCapture) {
+          final victimValue = b.capturedPiece?.value ?? 0;
+          scoreB += victimValue * 10;
+        }
         if (a.isPromotion) scoreA += 900;
         if (b.isPromotion) scoreB += 900;
         return scoreB.compareTo(scoreA);
       });
   }
 
-  // ─── Position evaluation ──────────────────────────────────────────────────
+
+  // ─── Advanced Position Evaluation ─────────────────────────────────────────
 
   static int _evaluate(GameState state) {
     int score = 0;
@@ -218,6 +353,13 @@ class AiEngine {
 
         int pieceScore = piece.value;
         pieceScore += _getPieceSquareBonus(piece.type, tableRow, c);
+
+        // Center control bonus for pawns and knights
+        if ((r == 3 || r == 4) && (c == 3 || c == 4)) {
+          if (piece.type == PieceType.pawn || piece.type == PieceType.knight) {
+            pieceScore += 15;
+          }
+        }
 
         score += sign * pieceScore;
       }
@@ -298,6 +440,7 @@ class AiEngine {
           ? 0
           : prev.halfMoveClock + 1,
       fullMoveNumber: prev.fullMoveNumber + (nextTurn == PieceColor.white ? 1 : 0),
+      lastMove: move,
     );
   }
 
@@ -358,3 +501,4 @@ class AiEngine {
 ChessMove? aiWorkerFindBestMove(Map<String, dynamic> args) {
   return AiEngine.findBestMoveFromMap(args);
 }
+

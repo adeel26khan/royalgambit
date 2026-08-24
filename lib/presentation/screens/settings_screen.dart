@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/core/utils/update_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
+import 'package:royalgambit/presentation/providers/profile_provider.dart';
 import 'package:royalgambit/presentation/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -18,11 +20,19 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text(AppStrings.settingsTitle),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
+      body: SafeArea(
+        top: false,
+        bottom: true,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Top Policy-Compliant Banner Ad
+            const BannerAdWidget(
+              padding: EdgeInsets.only(bottom: 16),
+            ),
+
             // ── Game ─────────────────────────────────────────────────────
             _SectionHeader('GAME'),
             _SettingsTile(
@@ -85,6 +95,29 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
             const Divider(),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.storefront_outlined, size: 18, color: AppColors.accent),
+              ),
+              title: const Text(
+                'Get More Skins & Themes',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              subtitle: const Text(
+                'Visit the Royal Shop to unlock premium board & piece sets 🛒',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              trailing: const Icon(Icons.chevron_right, color: AppColors.accent),
+              onTap: () => Navigator.pushNamed(context, '/shop'),
+            ),
+            const Divider(),
             _SwitchTile(
               icon: Icons.format_list_numbered,
               title: AppStrings.showCoordinates,
@@ -140,7 +173,7 @@ class SettingsScreen extends ConsumerWidget {
               },
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
 
             // About
             Center(
@@ -156,7 +189,8 @@ class SettingsScreen extends ConsumerWidget {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   String _timerLabel(int seconds) {
@@ -318,7 +352,7 @@ class _DifficultyDropdown extends StatelessWidget {
   }
 }
 
-class _BoardThemeSelector extends StatelessWidget {
+class _BoardThemeSelector extends ConsumerWidget {
   final BoardTheme value;
   final ValueChanged<BoardTheme> onChanged;
 
@@ -344,73 +378,42 @@ class _BoardThemeSelector extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+
+    final allThemes = [
+      (BoardTheme.walnut, 'Walnut Classic', 'assets/board-thumbnails/wood.jpg'),
+      (BoardTheme.wood2, 'Mahogany Wood', 'assets/board-thumbnails/wood2.jpg'),
+      (BoardTheme.wood3, 'Vintage Oak', 'assets/board-thumbnails/wood3.jpg'),
+      (BoardTheme.wood4, 'Rustic Birch', 'assets/board-thumbnails/wood4.jpg'),
+      (BoardTheme.maple, 'Light Maple', 'assets/board-thumbnails/maple.jpg'),
+      (BoardTheme.blue, 'Royal Blue', 'assets/board-thumbnails/blue.jpg'),
+      (BoardTheme.blueMarble, 'Blue Marble', 'assets/board-thumbnails/blueMarble.jpg'),
+      (BoardTheme.brown, 'Deep Brown', 'assets/board-thumbnails/brown.jpg'),
+      (BoardTheme.green, 'Forest Green', 'assets/board-thumbnails/green.jpg'),
+      (BoardTheme.grey, 'Obsidian Slate', 'assets/board-thumbnails/grey.jpg'),
+      (BoardTheme.canvas, 'Artist Canvas', 'assets/board-thumbnails/canvas.jpg'),
+      (BoardTheme.leather, 'Premium Leather', 'assets/board-thumbnails/leather.jpg'),
+      (BoardTheme.marble, 'White Marble', 'assets/board-thumbnails/marble.jpg'),
+      (BoardTheme.metal, 'Titanium Metal', 'assets/board-thumbnails/metal.jpg'),
+      (BoardTheme.purpleDiag, 'Cyber Purple', 'assets/board-thumbnails/purpleDiag.jpg'),
+    ];
+
+    // Filter to owned themes only
+    final ownedThemes = allThemes
+        .where((t) => profile.isBoardThemeUnlocked(t.$1))
+        .toList();
+
     return DropdownButton<BoardTheme>(
-      value: value,
+      value: profile.isBoardThemeUnlocked(value) ? value : ownedThemes.first.$1,
       dropdownColor: AppColors.surface,
       underline: const SizedBox.shrink(),
-      items: [
-        DropdownMenuItem(
-          value: BoardTheme.walnut,
-          child: _buildThemeItem(BoardTheme.walnut, 'Walnut Classic', 'assets/board-thumbnails/wood.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.wood2,
-          child: _buildThemeItem(BoardTheme.wood2, 'Mahogany Wood', 'assets/board-thumbnails/wood2.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.wood3,
-          child: _buildThemeItem(BoardTheme.wood3, 'Vintage Oak', 'assets/board-thumbnails/wood3.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.wood4,
-          child: _buildThemeItem(BoardTheme.wood4, 'Rustic Birch', 'assets/board-thumbnails/wood4.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.maple,
-          child: _buildThemeItem(BoardTheme.maple, 'Light Maple', 'assets/board-thumbnails/maple.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.blue,
-          child: _buildThemeItem(BoardTheme.blue, 'Royal Blue', 'assets/board-thumbnails/blue.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.blueMarble,
-          child: _buildThemeItem(BoardTheme.blueMarble, 'Blue Marble', 'assets/board-thumbnails/blueMarble.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.brown,
-          child: _buildThemeItem(BoardTheme.brown, 'Deep Brown', 'assets/board-thumbnails/brown.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.green,
-          child: _buildThemeItem(BoardTheme.green, 'Forest Green', 'assets/board-thumbnails/green.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.grey,
-          child: _buildThemeItem(BoardTheme.grey, 'Obsidian Slate', 'assets/board-thumbnails/grey.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.canvas,
-          child: _buildThemeItem(BoardTheme.canvas, 'Artist Canvas', 'assets/board-thumbnails/canvas.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.leather,
-          child: _buildThemeItem(BoardTheme.leather, 'Premium Leather', 'assets/board-thumbnails/leather.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.marble,
-          child: _buildThemeItem(BoardTheme.marble, 'White Marble', 'assets/board-thumbnails/marble.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.metal,
-          child: _buildThemeItem(BoardTheme.metal, 'Titanium Metal', 'assets/board-thumbnails/metal.jpg'),
-        ),
-        DropdownMenuItem(
-          value: BoardTheme.purpleDiag,
-          child: _buildThemeItem(BoardTheme.purpleDiag, 'Cyber Purple', 'assets/board-thumbnails/purpleDiag.jpg'),
-        ),
-      ],
+      items: ownedThemes.map((t) {
+        return DropdownMenuItem(
+          value: t.$1,
+          child: _buildThemeItem(t.$1, t.$2, t.$3),
+        );
+      }).toList(),
       onChanged: (v) {
         if (v != null) onChanged(v);
       },
@@ -418,42 +421,45 @@ class _BoardThemeSelector extends StatelessWidget {
   }
 }
 
-class _PieceThemeSelector extends StatelessWidget {
+class _PieceThemeSelector extends ConsumerWidget {
   final PieceTheme value;
   final ValueChanged<PieceTheme> onChanged;
 
   const _PieceThemeSelector({required this.value, required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+
+    final allPieceSets = [
+      (PieceTheme.alpha, 'Alpha Set (Default)'),
+      (PieceTheme.totoy, 'Totoy Set'),
+      (PieceTheme.fantasy, 'Fantasy Set'),
+      (PieceTheme.customSvg, 'Custom SVG Set'),
+    ];
+
+    // Filter to owned piece sets only
+    final ownedSets = allPieceSets
+        .where((p) => profile.isPieceThemeUnlocked(p.$1))
+        .toList();
+
     return DropdownButton<PieceTheme>(
-      value: value,
+      value: profile.isPieceThemeUnlocked(value) ? value : ownedSets.first.$1,
       dropdownColor: AppColors.surface,
       underline: const SizedBox.shrink(),
-      items: const [
-        DropdownMenuItem(
-          value: PieceTheme.alpha,
-          child: Text('Alpha Set (Default)'),
-        ),
-        DropdownMenuItem(
-          value: PieceTheme.totoy,
-          child: Text('Totoy Set'),
-        ),
-        DropdownMenuItem(
-          value: PieceTheme.fantasy,
-          child: Text('Fantasy Set'),
-        ),
-        DropdownMenuItem(
-          value: PieceTheme.customSvg,
-          child: Text('Custom SVG'),
-        ),
-      ],
+      items: ownedSets.map((p) {
+        return DropdownMenuItem(
+          value: p.$1,
+          child: Text(p.$2),
+        );
+      }).toList(),
       onChanged: (v) {
         if (v != null) onChanged(v);
       },
     );
   }
 }
+
 
 class _TimerDropdown extends StatelessWidget {
   final int value;
@@ -479,3 +485,4 @@ class _TimerDropdown extends StatelessWidget {
     );
   }
 }
+

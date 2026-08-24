@@ -89,11 +89,14 @@ class PlayerInfoPanel extends ConsumerWidget {
             ),
             child: ClipOval(
               child: isAiPlayer
-                  ? Image.asset(
-                      'assets/images/stockfish/icon.webp',
-                      width: 40,
-                      height: 40,
-                      fit: BoxFit.cover,
+                  ? Center(
+                      child: Icon(
+                        Icons.smart_toy_rounded,
+                        size: 22,
+                        color: isCurrentTurn
+                            ? AppColors.accent
+                            : AppColors.textSecondary,
+                      ),
                     )
                   : Center(
                       child: Text(

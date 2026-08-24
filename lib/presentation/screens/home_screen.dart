@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:royalgambit/core/constants/app_colors.dart';
 import 'package:royalgambit/core/constants/app_strings.dart';
+import 'package:royalgambit/core/utils/ad_service.dart';
 import 'package:royalgambit/core/utils/update_service.dart';
 import 'package:royalgambit/domain/models/game_state.dart';
 import 'package:royalgambit/domain/models/piece.dart';
 import 'package:royalgambit/presentation/providers/game_provider.dart';
+import 'package:royalgambit/presentation/providers/profile_provider.dart';
 import 'package:royalgambit/presentation/providers/settings_provider.dart';
 import 'package:royalgambit/presentation/providers/timer_provider.dart';
 
@@ -92,7 +94,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
 
-                      const SizedBox(height: 16),
+                      // Policy-Compliant Top Banner Ad (Completely isolated from bottom buttons)
+                      const BannerAdWidget(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                      ),
+
+                      // Player Rank & XP Progress Banner
+                      const _ProfileRankBanner(),
+
+                      const SizedBox(height: 12),
 
                       // Main Form Options (Fit within available height)
                       Expanded(
@@ -133,9 +143,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                       const SizedBox(height: 12),
 
-                      // Bottom Action Bar: START MATCH + Settings
+                      // Bottom Action Bar: START MATCH + SHOP + Settings
                       _BottomActionBar(
                         onStart: _startGame,
+                        onOpenShop: () =>
+                            Navigator.pushNamed(context, '/shop'),
                         onOpenSettings: () =>
                             Navigator.pushNamed(context, '/settings'),
                       ),
@@ -682,10 +694,12 @@ class _ColorChip extends StatelessWidget {
 
 class _BottomActionBar extends StatelessWidget {
   final VoidCallback onStart;
+  final VoidCallback onOpenShop;
   final VoidCallback onOpenSettings;
 
   const _BottomActionBar({
     required this.onStart,
+    required this.onOpenShop,
     required this.onOpenSettings,
   });
 
@@ -702,7 +716,7 @@ class _BottomActionBar extends StatelessWidget {
               label: const Text(
                 'START MATCH',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.2,
                   color: Color(0xFF121212),
@@ -715,6 +729,23 @@ class _BottomActionBar extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: AppColors.accent.withOpacity(0.2),
+            ),
+          ),
+          child: IconButton(
+            onPressed: onOpenShop,
+            icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.accent),
+            tooltip: 'Shop',
           ),
         ),
         const SizedBox(width: 10),
@@ -764,3 +795,139 @@ class _ChessPatternPainter extends CustomPainter {
   @override
   bool shouldRepaint(_) => false;
 }
+
+// ─── Profile Rank & XP Banner ──────────────────────────────────────────────────
+
+class _ProfileRankBanner extends ConsumerWidget {
+  const _ProfileRankBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final profile = ref.watch(profileProvider);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppColors.accent.withOpacity(0.2),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Rank Level Badge
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: AppColors.goldGradient,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.accent.withOpacity(0.3),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: Center(
+              child: Text(
+                'L${profile.rankLevel}',
+                style: const TextStyle(
+                  color: Color(0xFF121212),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      profile.rankTitle.toUpperCase(),
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${profile.xp} XP',
+                      style: const TextStyle(
+                        color: AppColors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: profile.rankProgress,
+                    minHeight: 6,
+                    backgroundColor: Colors.white10,
+                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          // Coins Shop Badge
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: () => Navigator.pushNamed(context, '/shop'),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: AppColors.accent.withOpacity(0.4),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('🪙', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${profile.coins}',
+                      style: const TextStyle(
+                        color: AppColors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+

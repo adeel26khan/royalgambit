@@ -3,6 +3,7 @@ import 'package:royalgambit/core/theme/app_theme.dart';
 import 'package:royalgambit/presentation/screens/game_screen.dart';
 import 'package:royalgambit/presentation/screens/home_screen.dart';
 import 'package:royalgambit/presentation/screens/settings_screen.dart';
+import 'package:royalgambit/presentation/screens/shop_screen.dart';
 
 class RoyalGambitApp extends StatelessWidget {
   const RoyalGambitApp({super.key});
@@ -18,7 +19,9 @@ class RoyalGambitApp extends StatelessWidget {
         '/': (_) => const HomeScreen(),
         '/game': (_) => const GameScreen(),
         '/settings': (_) => const SettingsScreen(),
+        '/shop': (_) => const ShopScreen(),
       },
     );
   }
 }
+
