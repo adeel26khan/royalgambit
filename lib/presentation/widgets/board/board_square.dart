@@ -293,6 +293,17 @@ class _BoardSquareState extends State<BoardSquare>
     final isCurrentPlayer = piece.color == widget.game.currentTurn;
     final canDrag = isCurrentPlayer && !widget.game.isGameOver;
 
+    // Rotate pieces 180° ONLY when playing local 2-player mode and piece belongs to the top player
+    final bool shouldRotate = widget.game.mode == GameMode.local2Player &&
+        piece.color == (widget.isFlipped ? PieceColor.white : PieceColor.black);
+
+    Widget wrapRotation(Widget pieceChild) {
+      if (shouldRotate) {
+        return RotatedBox(quarterTurns: 2, child: pieceChild);
+      }
+      return pieceChild;
+    }
+
     if (canDrag) {
       return Draggable<Square>(
         data: widget.square,
@@ -301,41 +312,49 @@ class _BoardSquareState extends State<BoardSquare>
           color: Colors.transparent,
           child: Opacity(
             opacity: 0.85,
-            child: PieceWidget(
-              type: piece.type,
-              color: piece.color,
-              size: pieceSize * 1.3,
-              selected: true,
-              pieceTheme: widget.pieceTheme,
+            child: wrapRotation(
+              PieceWidget(
+                type: piece.type,
+                color: piece.color,
+                size: pieceSize * 1.3,
+                selected: true,
+                pieceTheme: widget.pieceTheme,
+              ),
             ),
           ),
         ),
         childWhenDragging: Opacity(
           opacity: 0.3,
-          child: PieceWidget(
+          child: wrapRotation(
+            PieceWidget(
+              type: piece.type,
+              color: piece.color,
+              size: pieceSize,
+              selected: false,
+              pieceTheme: widget.pieceTheme,
+            ),
+          ),
+        ),
+        child: wrapRotation(
+          PieceWidget(
             type: piece.type,
             color: piece.color,
             size: pieceSize,
-            selected: false,
+            selected: widget.isSelected,
             pieceTheme: widget.pieceTheme,
           ),
-        ),
-        child: PieceWidget(
-          type: piece.type,
-          color: piece.color,
-          size: pieceSize,
-          selected: widget.isSelected,
-          pieceTheme: widget.pieceTheme,
         ),
       );
     }
 
-    return PieceWidget(
-      type: piece.type,
-      color: piece.color,
-      size: pieceSize,
-      selected: false,
-      pieceTheme: widget.pieceTheme,
+    return wrapRotation(
+      PieceWidget(
+        type: piece.type,
+        color: piece.color,
+        size: pieceSize,
+        selected: false,
+        pieceTheme: widget.pieceTheme,
+      ),
     );
   }
 }
