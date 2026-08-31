@@ -103,13 +103,17 @@ class AiEngine {
       case AiDifficulty.beginner:
         return _randomOrGreedy(state, moves);
       case AiDifficulty.intermediate:
-        return _minimaxBest(state, moves, 3, maxQuiescence: 2);
+        return _minimaxBest(state, moves, 3, maxQuiescence: 1);
       case AiDifficulty.advanced:
-        return _minimaxBest(state, moves, 4, maxQuiescence: 3);
+        return _minimaxBest(state, moves, 4, maxQuiescence: 2);
       case AiDifficulty.master:
-        return _minimaxBest(state, moves, 5, maxQuiescence: 4);
+        return _minimaxBest(state, moves, 5, maxQuiescence: 3);
     }
   }
+
+  // ─── Transposition Table Cache ───────────────────────────────────────────
+
+  static final Map<String, _TTEntry> _transpositionTable = {};
 
   // ─── Opening Book Implementation ─────────────────────────────────────────
 
@@ -174,7 +178,7 @@ class AiEngine {
     return moves[_random.nextInt(moves.length)];
   }
 
-  // ─── Minimax with alpha-beta pruning & randomized tie-breaking ─────────
+  // ─── Minimax with Transposition Table, Alpha-Beta pruning & Randomized Tie-Breaking ─────
 
   static ChessMove? _minimaxBest(
     GameState state,
@@ -182,7 +186,12 @@ class AiEngine {
     int depth, {
     required int maxQuiescence,
   }) {
-    final ordered = _orderMoves(moves);
+    // Limit transposition table size to prevent memory inflation
+    if (_transpositionTable.length > 50000) {
+      _transpositionTable.clear();
+    }
+
+    final ordered = _orderMoves(state, moves);
     final maximizing = state.currentTurn == PieceColor.white;
 
     final moveScores = <(ChessMove, int)>[];
@@ -231,15 +240,25 @@ class AiEngine {
       return _quiescenceSearch(state, alpha, beta, maximizing, maxQuiescence);
     }
 
+    // Transposition Table Lookup
+    final posKey = state.positionKey();
+    final cached = _transpositionTable[posKey];
+    if (cached != null && cached.depth >= depth) {
+      return cached.score;
+    }
+
     final moves = MoveGenerator.generateLegalMoves(state, state.currentTurn);
     if (moves.isEmpty) {
       if (ChessValidator.isInCheck(state.board, state.currentTurn)) {
-        return maximizing ? -50000 : 50000; // Checkmate
+        return maximizing ? -50000 - depth : 50000 + depth; // Checkmate
       }
       return 0; // Stalemate
     }
 
-    final ordered = _orderMoves(moves);
+    final ordered = _orderMoves(state, moves, pvMove: cached?.bestMove);
+
+    int resultScore;
+    ChessMove? bestMoveFound;
 
     if (maximizing) {
       int maxEval = -999999;
@@ -247,23 +266,33 @@ class AiEngine {
         final newBoard = MoveGenerator.applyMoveToBoard(state.board, move);
         final newState = _quickState(state, newBoard, move);
         final eval = _minimax(newState, depth - 1, alpha, beta, false, maxQuiescence);
-        maxEval = max(maxEval, eval);
+        if (eval > maxEval) {
+          maxEval = eval;
+          bestMoveFound = move;
+        }
         alpha = max(alpha, eval);
         if (beta <= alpha) break;
       }
-      return maxEval;
+      resultScore = maxEval;
     } else {
       int minEval = 999999;
       for (final move in ordered) {
         final newBoard = MoveGenerator.applyMoveToBoard(state.board, move);
         final newState = _quickState(state, newBoard, move);
         final eval = _minimax(newState, depth - 1, alpha, beta, true, maxQuiescence);
-        minEval = min(minEval, eval);
+        if (eval < minEval) {
+          minEval = eval;
+          bestMoveFound = move;
+        }
         beta = min(beta, eval);
         if (beta <= alpha) break;
       }
-      return minEval;
+      resultScore = minEval;
     }
+
+    // Cache evaluation in Transposition Table
+    _transpositionTable[posKey] = _TTEntry(depth, resultScore, bestMoveFound);
+    return resultScore;
   }
 
   // ─── Quiescence Search (Solves Horizon Effect / Blunders) ────────────────
@@ -288,7 +317,7 @@ class AiEngine {
     }
 
     final moves = MoveGenerator.generateLegalMoves(state, state.currentTurn);
-    final captures = _orderMoves(moves.where((m) => m.isCapture).toList());
+    final captures = _orderMoves(state, moves.where((m) => m.isCapture).toList());
 
     if (captures.isEmpty) return standPat;
 
@@ -317,21 +346,33 @@ class AiEngine {
     }
   }
 
-  // ─── Move ordering for better alpha-beta pruning ──────────────────────────
+  // ─── MVV-LVA & PV Move Ordering ──────────────────────────────────────────
 
-  static List<ChessMove> _orderMoves(List<ChessMove> moves) {
+  static List<ChessMove> _orderMoves(GameState state, List<ChessMove> moves, {ChessMove? pvMove}) {
     return [...moves]..sort((a, b) {
         int scoreA = 0, scoreB = 0;
+
+        // Principal Variation (Cached best move gets top priority)
+        if (pvMove != null) {
+          if (a.from == pvMove.from && a.to == pvMove.to) scoreA += 5000;
+          if (b.from == pvMove.from && b.to == pvMove.to) scoreB += 5000;
+        }
+
+        // MVV-LVA (Most Valuable Victim - Least Valuable Attacker)
         if (a.isCapture) {
-          final victimValue = a.capturedPiece?.value ?? 0;
-          scoreA += victimValue * 10;
+          final victimVal = a.capturedPiece?.value ?? 0;
+          final attackerVal = state.board[a.from.row][a.from.col]?.value ?? 100;
+          scoreA += (victimVal * 10) - attackerVal;
         }
         if (b.isCapture) {
-          final victimValue = b.capturedPiece?.value ?? 0;
-          scoreB += victimValue * 10;
+          final victimVal = b.capturedPiece?.value ?? 0;
+          final attackerVal = state.board[b.from.row][b.from.col]?.value ?? 100;
+          scoreB += (victimVal * 10) - attackerVal;
         }
+
         if (a.isPromotion) scoreA += 900;
         if (b.isPromotion) scoreB += 900;
+
         return scoreB.compareTo(scoreA);
       });
   }
@@ -500,5 +541,12 @@ class AiEngine {
 /// Top-level function for Flutter's compute() — must be a top-level function.
 ChessMove? aiWorkerFindBestMove(Map<String, dynamic> args) {
   return AiEngine.findBestMoveFromMap(args);
+}
+
+class _TTEntry {
+  final int depth;
+  final int score;
+  final ChessMove? bestMove;
+  _TTEntry(this.depth, this.score, this.bestMove);
 }
 

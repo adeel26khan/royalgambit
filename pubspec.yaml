@@ -2,7 +2,7 @@ name: royalgambit
 description: "Royal Gambit — A fully-featured cross-platform chess game."
 publish_to: 'none'
 
-version: 1.0.7+8
+version: 1.0.7+9
 
 environment:
   sdk: ^3.11.1
